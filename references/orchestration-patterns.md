@@ -1,5 +1,7 @@
 # Agent 编排模式
 
+> **免责声明**：本文件源自第三方仓库的编排经验整理，其中**「Claude Code 兼容性」章节和「实战案例：Agent Teams」章节**涉及 Claude Code 平台专属概念（subagent、Agent Teams、内置 `Explore`、plugin frontmatter 限制等）。BuildRail 自身不依赖这些机制——BuildRail 的核心命令（`br-bugfix` / `br-iterate` / `br-full-dev` / `run`）都是顺序编排，跨 skill 调用通过返回值完成。文件前半部分的"推荐模式"和"反模式"对所有 markdown 驱动的 agent 通用；后半部分的 Claude Code 章节作为可选参考保留。
+
 本仓库推荐的 agent 编排模式参考目录，以及需要避免的反模式。在添加新的会协调多个专家视角的斜杠命令之前，或在引入"包装"现有专家视角的新专家之前，请先阅读本文件。
 
 核心规则：**用户（或斜杠命令）是编排者。专家视角不调用其他专家视角。** Skill 是专家视角工作流中的必经步骤。
@@ -37,7 +39,7 @@
 
 **适用场景：** 同一个单专家视角调用反复出现，且每次的配置都相同。
 
-**本仓库示例：** `/br-review`、`/br-test`。代码简化功能（`br-simplify`）和安全审计（`br-security`）为规划中的 skill。
+**本仓库示例：** `/br-review`、`/br-test`。其他安全/简化/性能类专家视角可按需新增。
 
 **成本：** 与直接调用相同。斜杠命令本质上是一个保存好的提示词。
 

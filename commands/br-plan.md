@@ -100,8 +100,9 @@ ls -lt .buildrail/idea/*-design.md .buildrail/idea/*-requirement.md 2>/dev/null
 - 用户要求修改 → 修改对应任务，重新确认
 
 确认后：
-> "✅ 计划已确认。共 X 个任务，涉及 Y 个文件。
-> 你可以运行后续 BuildRail skill（如 `/build`）来执行计划。"
+> "✅ 计划已确认。共 X 个任务，涉及 Y 个文件。"
+- **级联调用**：如果是由顶层编排器（如 `/br-full-dev`）调用的本流程，在状态变为 APPROVED 后，**直接将控制权交还给父工作流**，继续后续执行。
+- **独立调用**：否则，提示用户可以运行后续 BuildRail 命令（如 `/run`）来执行计划。
 
 ---
 

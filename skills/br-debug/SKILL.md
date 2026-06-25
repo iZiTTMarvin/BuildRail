@@ -217,6 +217,30 @@ npm run build 2>&1 || python -m build 2>&1 || true                              
 **建议：** {下一步建议}
 ```
 
+## 返回契约（被上层调用时）
+
+当 `br-debug` 被 `/run`、`/br-bugfix` 等上层 skill 调用时（而不是用户直接调用），必须返回**结构化结果**让上层能做决策。返回格式：
+
+```yaml
+debug_result:
+  status: fixed | partial | unresolved
+  attempts: 2                 # 实际尝试次数（最多 2）
+  failure_evidence:           # status != fixed 时必填
+    - 验收标准: <文本>
+      实际输出: <文本>
+      错误位置: <文件:行号或函数名>
+  root_cause_guess: <文本>    # status != fixed 时必填
+  next_steps:                 # status != fixed 时必填
+    - <可执行的下一步建议>
+```
+
+**`status` 三种取值的含义**：
+- `fixed`：第 1 或第 2 次尝试修好了，返回时附上修复 commit hash 和对应测试。
+- `partial`：修了一部分但验收标准仍未完全通过（例如：复现失败的问题被缩小但未根除；外部依赖问题绕过了但不彻底）。
+- `unresolved`：2 次重试耗尽，调用方需要决定是跳过、回退还是人工介入。
+
+**为什么需要这个契约**：`/run` 在重试 3 次后会把任务标记为 `⏭️ SKIPPED`；`/br-bugfix` S3 在重试 2 次后需要向用户输出诊断报告。没有结构化返回，上层只能凭自然语言做决策，容易遗漏关键证据。这个契约让上层在处理失败时能拿到足够信息做判断。
+
 ## 异常处理
 
 | 场景 | 处理方式 |

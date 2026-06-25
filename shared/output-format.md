@@ -46,6 +46,8 @@
 
 ## 状态枚举
 
+**文档生命周期状态**（每个 idea/plan 文件 frontmatter 中的 `状态` 字段）：
+
 | 状态 | 含义 | 变更条件 |
 |------|------|----------|
 | DRAFT | 初始状态，讨论中 | 默认 |
@@ -55,6 +57,19 @@
 - 不记录审批人/时间（个人工具）
 - 用户在 APPROVED 前可随时要求修改
 - APPROVED 后仍可退回 DRAFT（用户要求修改时）
+
+### 状态机区分
+
+BuildRail 有**两套独立的状态机**，不要混用：
+
+1. **文档生命周期状态**（上面表格）——属于 idea/plan 文件本身。`/br-plan` 等 skill 通过读取 frontmatter 的 `状态: APPROVED` 来决定是否消费这份文档。
+2. **审查严重度等级**——属于 `br-scope-check` 的内部产出（HIGH / MEDIUM / LOW），以及它的派生态 Tradeoff。**不会**写入 idea/plan 的 frontmatter，而是追加在文档正文末尾的 `## Scope Check 结果` 区块里。
+
+举例：
+- 一份 idea 文档可以是 `状态: APPROVED`（已被用户接受），但末尾的 Scope Check 结果里还有 `HIGH: 2`（scope-check 发现了 2 个未解决问题）。
+- 这种"已批准但带风险"的状态由 `br-task-breakdown` 在拆分任务时读取并标注为 `## 风险与 Tradeoff`，进入计划文件。
+
+新增 skill 时注意：如果你产出的是 idea/plan 文档，用第一套；如果你产出审查/评估结果，用第二套并加 tally 注释。
 
 ## 下游发现机制
 

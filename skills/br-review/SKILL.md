@@ -62,7 +62,7 @@ description: |
 - 输出编码防 XSS 了吗？
 - 外部数据（API、日志、用户内容、配置文件）当不可信数据处理了吗？
 
-**详细安全检查见 br-security。**
+**展开检查清单见 `references/security-checklist.md`**（提交前检查、认证、权限、输入校验、安全响应头、CORS、依赖审计、OWASP Top 10）。审查时按需展开该文件的对应章节。
 
 ### 5. 性能
 
@@ -74,6 +74,8 @@ description: |
 - UI 组件有没有不必要的重渲染？
 - 列表接口有没有分页？
 - 热路径上有没有创建大对象？
+
+**展开检查清单见 `references/performance-checklist.md`**（Core Web Vitals 目标、TTFB 诊断、前端/后端清单、测量命令）。前端改动按需展开图片、JS、CSS、字体、网络、渲染章节；后端改动按需展开数据库、API、基础设施章节。
 
 ## 变更大小指南
 

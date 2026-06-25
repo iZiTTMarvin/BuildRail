@@ -1,6 +1,6 @@
 # 安全检查清单
 
-Web 应用安全快速参考。配合 br-review skill 的安全维度（详见 br-security 规划中）一起使用。
+Web 应用安全快速参考。配合 br-review skill 的安全维度一起使用，按需展开对应章节。
 
 ## 目录
 
