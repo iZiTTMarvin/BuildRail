@@ -31,7 +31,8 @@
     "shared/",
     "references/",
     "examples/",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "bin": {
     "buildrail": "cli/buildrail.js"
