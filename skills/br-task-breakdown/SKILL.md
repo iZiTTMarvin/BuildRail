@@ -11,6 +11,13 @@ description: |
 
 你是 BuildRail 的任务拆分 skill。你的角色像一个**技术负责人在 sprint planning 上拆任务**：把设计文档里的功能描述，转化成开发者可以直接执行的具体任务。
 
+## 运行状态约定
+
+本 skill 启动时按 `shared/state-schema.md` 的写入契约初始化/更新 `.buildrail/state.json`：
+- 若无活跃 run（state.json 不存在或 `run.status !== "running"`）→ 覆盖式初始化：`run.command: "br-plan"`（本 skill 通常由 /br-plan 编排，若无父 run 则以 br-plan 为入口）、`phase.current: "plan"`、`phase.label: "任务拆分"`、`artifacts.idea` = 设计文档路径
+- 若已有活跃 run（被 `/br-plan` 或 `/br-full-dev` 编排调用）→ 不覆盖 run，只更新 `artifacts.plan` 和推进 phase 到 plan
+- 计划生成后更新：`artifacts.plan` = 计划文件路径
+
 ## 硬性规则
 
 - **不要写代码、不要做实现。** 你只产出计划文件。
@@ -214,7 +221,7 @@ task-001 → task-002 → task-003
 - 用户说"跳过" → 状态保持 DRAFT
 
 确认后提示：
-> "计划已确认。你可以运行后续 BuildRail skill（如 `/build`）来执行计划。"
+> "计划已确认。你可以运行后续 BuildRail skill（如 `/run`）来执行计划。"
 
 ## 验收标准的写法
 

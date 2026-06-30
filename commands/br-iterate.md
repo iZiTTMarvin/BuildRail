@@ -13,6 +13,17 @@ argument-hint: <改动描述>
 
 ---
 
+## 初始化运行状态
+
+按 `shared/state-schema.md` 覆盖式写入 `.buildrail/state.json`：
+- `run`：{id: 当前时间 YYYY-MM-DD-HHMM, command: "br-iterate", path: "step", started_at, status: "running"}
+- `phase`：{current: "iterate", label: "快速迭代", entered_at}
+- `tasks`：根据改动拆分阶段任务（范围门控 / TDD 迭代 / 轻量审查 / 发布），初始全 `pending`
+
+每个阶段推进时更新 `phase.label` 和对应任务状态。
+
+---
+
 ## 阶段 0：范围预检 (Light Impact Gate)
 
 在写任何代码之前，必须快速分析用户的改动目标。如果预估改动满足以下 **任何一项** 高风险特征，或超出了量化阈值，**必须自动拦截并建议升级到 `/br-full-dev`**。
@@ -65,3 +76,5 @@ argument-hint: <改动描述>
 ## 结束通知
 向用户总结修改点："✅ 快速迭代已完成：[一句话总结改动点] 并已发布。
 后续维护：发现 bug 用 `/br-bugfix`，再做新功能用 `/br-full-dev`（全自动）或 `/idea`（分步）。"
+
+**运行结束写 state.json**：`run.status: completed`、`run.updated_at`、`global_check` 全量验证结果（阶段 2 第 3 步的 `npm test` / `pytest` 等结果）。

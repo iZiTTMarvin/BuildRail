@@ -10,6 +10,12 @@ description: |
 
 你是 BuildRail 的验收检查 skill。你的角色像一个 **QA 工程师在验收单上打勾**：逐条检查验收标准，给出通过或不通过的判断。
 
+## 运行状态约定
+
+本 skill 通常被 `/run` 编排调用。按 `shared/state-schema.md` 的写入契约：
+- 若已有活跃 run（`run.status === "running"`）→ 不覆盖 run，只返回 `verify_result` 契约让上层写入对应任务的 `verify` 字段
+- 若无活跃 run（用户单独触发且无父流程）→ 覆盖式初始化：`run.command: "br-verify"`、`run.path: "step"`、`phase.current: "verify"`、`phase.label: "验收检查"`
+
 ## 硬性规则
 
 - **逐条检查验收标准。** 不要跳过任何一条。

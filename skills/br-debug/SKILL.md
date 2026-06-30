@@ -11,6 +11,13 @@ description: |
 
 你是 BuildRail 的调试 skill。你的角色像一个 **值班工程师在排查线上问题**：不猜、不跳步、按流程来。
 
+## 运行状态约定
+
+本 skill 启动时按 `shared/state-schema.md` 的写入契约初始化/更新 `.buildrail/state.json`：
+- 若无活跃 run（state.json 不存在或 `run.status !== "running"`）→ 视为入口（用户单独 `/br-debug`），覆盖式初始化：`run.command: "br-debug"`、`run.path: "step"`、`phase.current: "debug"`、`phase.label: "深度调试"`
+- 若已有活跃 run（被 `/run` 或 `/br-bugfix` 编排调用）→ 不覆盖 run，只更新对应任务的 `attempts`/`failure` 字段，并在重试耗尽时返回 `debug_result` 契约
+- 修复成功 → 对应任务 `status: "done"`；2 次失败 → `status: "failed"` + 写入 `failure`
+
 ## 硬性规则
 
 - **先复现再修复。** 不能复现的问题不能修。
@@ -69,11 +76,25 @@ description: |
 ```
 
 **复现命令**：
-```bash
-npm test -- --grep "test name" 2>&1 || pytest tests/test_xxx.py -v 2>&1 || true    # 精确到单个测试
-npm test -- --verbose 2>&1 || pytest -v --tb=long 2>&1 || true                      # 查看详细错误
-npm test -- --testPathPattern="specific-file" --runInBand 2>&1 || true               # 隔离运行，排除测试污染
+
+按 `shared/file-ops.md` 的 **P3** 先从 `package.json` / `pyproject.toml` / `Makefile` 提取项目的测试命令，再用下面的意图执行——不要写死 shell 的 `|| true` 吞错语法，那是 bash 专用、Windows 原生会报错：
+
 ```
+意图 1：精确复现单个测试（用项目测试命令 + 过滤参数）
+  - 如 npm test -- --grep "<test name>"
+  - 或 pytest tests/test_xxx.py::<test_func> -v
+  我要拿到：该测试的失败输出（断言、堆栈、实际 vs 预期）
+
+意图 2：查看详细错误
+  - 在意图 1 的基础上加 verbose 标志（--verbose / -v / --tb=long）
+  我要拿到：完整的错误堆栈和上下文
+
+意图 3：隔离运行（排除测试间污染）
+  - 单独跑这一个测试文件，或用 in-band / serial 选项避免并发
+  我要拿到：是否在隔离环境下仍失败——是则真 bug，否则是测试间状态泄漏
+```
+
+> 用 agent 的原生命令执行工具跑这些命令。命令本身的输出（成功或失败）就是证据，不要用 `2>&1 || true` 之类吞错——那会掩盖真实失败信号，且在 Windows CMD/PowerShell 下语法不兼容。
 
 ### 第三步：定位
 
@@ -138,13 +159,23 @@ it('不显示重复的用户', async () => {
 
 ### 第七步：端到端验证
 
-```bash
-npm test -- --grep "specific test" 2>&1 || pytest tests/test_xxx.py -v 2>&1 || true  # 失败的测试
-npm test 2>&1 || pytest 2>&1 || true                                                  # 全量测试，检查回归
-npm run build 2>&1 || python -m build 2>&1 || true                                    # 构建检查
+按 `shared/file-ops.md` 的 **P3** 提取项目的测试/构建命令，逐条执行并记录结果——不要用 `2>&1 || true` 吞错（bash 专用，Windows 不兼容）：
+
+```
+意图 1：跑修复时失败的那个测试，确认现在通过
+  - 用第二步提取的测试命令 + 对应过滤参数
+  我要拿到：该测试 PASS
+
+意图 2：跑全量测试，检查修复有没有引入回归
+  - 用项目根的测试命令（npm test / pytest / make test）
+  我要拿到：全部 PASS（或列出新增的失败项）
+
+意图 3：跑构建，确认项目仍可编译
+  - 用项目的构建命令（npm run build / python -m build）
+  我要拿到：构建成功
 ```
 
-全部通过 → 修复完成。
+三项都通过 → 修复完成。任一项失败 → 回到第五步重新评估根因（注意"修复 A 引入 B"的回归）。
 
 ## 失败分流
 

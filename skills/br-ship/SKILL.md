@@ -6,6 +6,14 @@ description: 发布环节。更新变更记录、打 Tag 并推送代码。
 
 负责将已验证通过的代码变更安全地记录并发布。在整个自动化流水线（bugfix, iterate, full-dev）的最后一步被调用。
 
+## 运行状态约定
+
+本 skill 启动时按 `shared/state-schema.md` 的写入契约初始化/更新 `.buildrail/state.json`：
+- 若无活跃 run（state.json 不存在或 `run.status !== "running"`）→ 视为入口（用户单独 `/br-ship`），覆盖式初始化：`run.command: "br-ship"`、`run.path: "step"`、`phase.current: "ship"`、`phase.label: "发布"`
+- 若已有活跃 run（被 `/br-full-dev` / `/br-bugfix` / `/br-iterate` / `/run` 编排调用）→ 不覆盖 run，只推进 phase 到 ship
+- 发布前检查 `review.verdict`：若为 `"block"` → 禁止发布，提示有 Critical/HIGH 未修
+- 发布完成：`run.status: "completed"`、`run.updated_at`
+
 ## 职责
 1. 更新项目变更记录（CHANGELOG.md）
 2. 提交元数据文件

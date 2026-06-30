@@ -12,14 +12,25 @@ argument-hint: <bug 描述或错误信息>
 
 ---
 
+## 初始化运行状态
+
+按 `shared/state-schema.md` 覆盖式写入 `.buildrail/state.json`：
+- `run`：{id: 当前时间 YYYY-MM-DD-HHMM, command: "br-bugfix", path: "step", started_at, status: "running"}
+- `phase`：{current: "bugfix", label: "Bug 修复", entered_at}
+- `tasks`：根据分级（S1/S2/S3）动态填充阶段任务，初始全 `pending`
+
+分级确定后更新 `phase.label` 为具体路径（如"S1 快速路"），并据此推进任务状态。
+
+---
+
 ## 阶段 0：严重性自动分级（决定路径）
 
 请根据 Bug 描述、报错堆栈或初步判断，自动将 Bug 分级为：
 
 | 级别 | 特征 | 执行路径 |
 |------|------|---------|
-| **S1 快速** | 明显的 typo、单行错误、文案或配置错误 | 直接修复 → `br-test` (TDD) → `br-ship` |
-| **S2 标准** | 单一模块内的逻辑错误，可稳定复现 | `git blame`/`log` 定位 → `br-test` (TDD) → 全量测试 → `br-ship` |
+| **S1 快速** | 明显的 typo、单行错误、文案或配置错误 | 复现测试 → 修复 → `br-test` 验证 → `br-ship` |
+| **S2 标准** | 单一模块内的逻辑错误，可稳定复现 | `git blame`/`log` 定位 → 复现测试 → 修复 → 全量测试 → `br-ship` |
 | **S3 深度** | 跨模块、偶发、报错不明确、数据损坏 | 调用 `br-debug` → `br-test` → `br-verify` & `br-review` → `br-ship` |
 
 > 🟡 判定分级后通知用户分级结果，并自动进入对应路径继续执行。
@@ -32,10 +43,13 @@ argument-hint: <bug 描述或错误信息>
 
 ## ── S1 快速路 ──
 
-1. **直接修复**：实施最小修复（确保修改限制在单一文件）。
-2. **TDD**：调用 `/br-test` 编写回归测试（要求先 FAIL 再 PASS）。
-3. **升级判断**：如果涉及到多文件修改，立即停止 S1 流程，自动升级到 S2 标准路。
-4. **发布**：调用 `/br-ship` 记录 Changelog 并发布变更。
+1. **先写复现测试**：调用 `/br-test`，针对这个 bug 写一个能复现它的测试（要求先看到 FAIL）。这一步证明 bug 确实存在，且修复后能被这个测试拦住。
+2. **最小修复**：实施最小修复（确保修改限制在单一文件），让复现测试通过（看到 PASS）。
+3. **升级判断**：如果修复涉及到多文件修改，立即停止 S1 流程，自动升级到 S2 标准路。
+4. **全量验证**：按 `shared/file-ops.md` 的 **P3** 提取项目的测试命令并运行全量测试，确保修复没引入回归。
+5. **发布**：调用 `/br-ship` 记录 Changelog 并发布变更。
+
+> S1 虽然是快速路，但仍然遵循"先写复现测试再修复"的 TDD 纪律，且必须过全量验证——只是省去了 git blame 取证和多维审查。
 
 ---
 
@@ -48,7 +62,7 @@ argument-hint: <bug 描述或错误信息>
    - 调用 `/br-test` 编写并执行回归测试（确保 FAIL），然后实现修复让它 PASS。
 3. **全量测试验证**：
    - 自动扫描项目的验证命令（如 `package.json` 中的 `test`, `Makefile` 中的 `test`, 或 `pyproject.toml`）。
-   - 运行全量测试，要求全部通过。如果出现全量测试失败，重新回到步骤 1 调查。
+   - 运行全量测试，要求全部通过。如果出现全量测试失败，**重新回到步骤 1 调查，最多回退 2 次**；仍失败则升级到 S3 深度路，让 `br-debug` 介入。
 4. **发布**：
    - 调用 `/br-ship` 记录 Changelog 并发布变更。
 
@@ -72,5 +86,6 @@ argument-hint: <bug 描述或错误信息>
 ## 异常处理与总结
 
 - 任何需要暂停询问用户的情况，只在遇到明确 🔴 标记（如 S3 重试耗尽）时发生。
+- **运行结束写 state.json**：`run.status: completed`（或 failed/aborted）、`run.updated_at`、`phase.current` 最终值、`global_check` 全量验证结果。
 - 完成后，简短向用户总结："✅ 已按 [级别] 路径完成 Bug 修复、测试与发布。"
 - 跑飞了用 `/br-status` 查看诊断。后续还有 bug 继续用 `/br-bugfix`，要做新功能用 `/br-full-dev`（全自动）或 `/idea`（分步）。

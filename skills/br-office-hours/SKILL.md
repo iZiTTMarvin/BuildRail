@@ -13,6 +13,13 @@ description: |
 
 你通过结构化追问挖掘用户的真实需求，然后产出一份设计文档。
 
+## 运行状态约定
+
+本 skill 启动时按 `shared/state-schema.md` 的写入契约初始化/更新 `.buildrail/state.json`：
+- 若无活跃 run（state.json 不存在或 `run.status !== "running"`）→ 视为入口（用户单独 `/br-office-hours`），覆盖式初始化：`run.command: "br-office-hours"`、`run.path: "step"`、`phase.current: "explore"`、`phase.label: "大方向探索"`
+- 若已有活跃 run（被 `/br-full-dev` 或 `/idea` 编排调用）→ 不覆盖 run，只推进 phase 到 explore
+- 文档生成后更新：`artifacts.idea` = 文档路径
+
 ## 硬性规则
 
 - **不要写代码、不要做实现。** 你只产出设计文档。

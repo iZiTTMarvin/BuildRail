@@ -92,12 +92,12 @@ function detectInstalledAgents() {
   const home = os.homedir();
   const found = [];
   for (const [key, cfg] of Object.entries(AGENTS)) {
-    const marker = path.join(home, cfg.commandsDir.replace(/\/commands$/, ''));
-    // 宽松判断：主配置目录存在即认为装了该 agent
+    // 宽松判断：命令目录、或其顶层配置目录存在即认为装了该 agent
+    // 例如 claude-code 看 ~/.claude，windsurf 看 ~/.codeium，opencode 看 ~/.opencode
+    const topConfigDir = path.join(home, cfg.commandsDir.split('/')[0]);
     const candidates = [
       path.join(home, cfg.commandsDir),
-      path.join(home, cfg.commandsDir.split('/')[0]),
-      path.join(home, cfg.commandsDir.split('/').slice(0, 2).join('/')),
+      topConfigDir,
     ];
     if (candidates.some(c => fs.existsSync(c))) found.push(key);
   }
@@ -158,13 +158,16 @@ async function cmdInit() {
   console.log(`  a) 全部安装`);
   console.log('');
 
-  let choice = await ask(rl, `输入序号（默认 1${detected.length === 1 ? '，检测到 ' + AGENTS[detected[0]].label : ''}）: `);
+  let choice = await ask(rl, `输入序号（默认 ${detected.length === 1 ? keys.indexOf(detected[0]) + 1 : 1}${detected.length === 1 ? '，检测到 ' + AGENTS[detected[0]].label : ''}）: `);
+
+  // 默认值优先用检测到的第一个 agent，没有检测到才回退到序号 1
+  const defaultIdx = detected.length === 1 ? keys.indexOf(detected[0]) : 0;
 
   let targets = [];
   if (choice.toLowerCase() === 'a') {
     targets = keys;
   } else {
-    const idx = parseInt(choice || '1', 10) - 1;
+    const idx = parseInt(choice || String(defaultIdx + 1), 10) - 1;
     if (isNaN(idx) || idx < 0 || idx >= keys.length) {
       console.error(`✗ 无效选择: "${choice}"`);
       rl.close();
@@ -187,31 +190,61 @@ async function cmdInit() {
   console.log('   重启你的 AI 助手，然后试试：');
   console.log('   /br-bugfix <bug 描述>');
   console.log('   /br-iterate <改动描述>');
-  console.log('   /br-full-dev <需求描述>');
-  console.log('\n   默认全自动模式（--auto）。想精细控制加 --manual。');
-  console.log('   详见 README.md 的"执行模式"章节。\n');
+  console.log('   /br-full-dev <需求描述>     全自动，一路跑到底');
+  console.log('   /idea <需求描述>            分步，逐步掌控');
+  console.log('\n   两种用法见 README.md 的"两种用法"章节，或 shared/two-paths.md。\n');
 }
 
-// ---- 命令分发 ----
+// ---- 导出（供单元测试 require；命令分发在 require.main === module 时才执行，被 require 时跳过） ----
 
-const [, , cmd] = process.argv;
+module.exports = {
+  AGENTS,
+  ensureDir,
+  copyDir,
+  listMarkdownFiles,
+  listSkillDirs,
+  detectInstalledAgents,
+  SRC_COMMANDS,
+  SRC_SKILLS,
+};
 
-if (cmd === 'init') {
-  cmdInit().catch(e => {
-    console.error('✗ 安装出错:', e.message);
+// ---- 命令分发（仅直接运行时执行，被 require 时跳过） ----
+
+if (require.main === module) {
+  const [, , cmd, ...rest] = process.argv;
+
+  if (cmd === 'init') {
+    cmdInit().catch(e => {
+      console.error('✗ 安装出错:', e.message);
+      process.exit(1);
+    });
+  } else if (cmd === 'list') {
+    // 调试用：列出当前仓库的 commands / skills
+    console.log('Commands:');
+    listMarkdownFiles(SRC_COMMANDS).forEach(c => console.log('  ' + c.name));
+    console.log('\nSkills:');
+    listSkillDirs(SRC_SKILLS).forEach(s => console.log('  ' + s.name + '/'));
+  } else if (cmd === 'help' || cmd === '--help' || cmd === '-h' || typeof cmd === 'undefined') {
+    console.log('BuildRail CLI — AI 原生开发工作流集合的一键安装器');
+    console.log('');
+    console.log('用法:');
+    console.log('  buildrail init            交互式安装 commands/skills 到目标 AI 助手');
+    console.log('  buildrail list            列出本仓库包含的 commands/skills');
+    console.log('  buildrail help            显示本帮助');
+    console.log('');
+    console.log('支持的 AI 助手:');
+    Object.entries(AGENTS).forEach(([k, v]) => console.log(`  ${v.label} (${k})`));
+    console.log('');
+    console.log('安装后用斜杠命令驱动你的 AI 助手，详见 README.md。');
+    process.exit(0);
+  } else {
+    console.log('BuildRail CLI');
+    console.log('');
+    console.log(`✗ 未知命令: "${cmd}"`);
+    console.log('用法:');
+    console.log('  buildrail init            交互式安装 commands/skills 到目标 AI 助手');
+    console.log('  buildrail list            列出本仓库包含的 commands/skills');
+    console.log('  buildrail help            显示帮助');
     process.exit(1);
-  });
-} else if (cmd === 'list') {
-  // 调试用：列出当前仓库的 commands / skills
-  console.log('Commands:');
-  listMarkdownFiles(SRC_COMMANDS).forEach(c => console.log('  ' + c.name));
-  console.log('\nSkills:');
-  listSkillDirs(SRC_SKILLS).forEach(s => console.log('  ' + s.name + '/'));
-} else {
-  console.log('BuildRail CLI');
-  console.log('');
-  console.log('用法:');
-  console.log('  buildrail init    交互式安装 commands/skills 到目标 AI 助手');
-  console.log('  buildrail list    列出本仓库包含的 commands/skills');
-  process.exit(cmd ? 1 : 0);
+  }
 }

@@ -122,11 +122,13 @@ BuildRail 提供了 4 个顶层工作流命令和 10 个底层基础技能单元
 >
 > **何时直接用 `/br-plan`**：你只想生成实现计划、暂时不执行（比如要先和同事评审计划）。`/br-plan` 会调用 `br-scope-check` 做范围挑战、`br-task-breakdown` 拆分任务，产出 APPROVED 计划后停下来等你。
 
-### 底层能力单元（被顶层自动调用）
-- `idea` / `br-office-hours` / `br-brainstorming`：负责需求探索与意图挖掘。
-- `br-scope-check` / `br-task-breakdown`：负责架构风险挑战与任务垂直拆分。
-- `br-test` / `br-debug` / `br-verify` / `br-review`：负责代码实现的测试、调试、验收与质量把控。
+### 底层能力单元（被顶层自动调用，也可在分步路径单独调用）
+- `idea` / `br-office-hours` / `br-brainstorming`：负责需求探索与意图挖掘。分步路径从 `/idea` 进入，也可跳过分流直接用 `/br-office-hours` 或 `/br-brainstorming`。
+- `br-scope-check` / `br-task-breakdown`：负责架构风险挑战与任务垂直拆分。`/br-scope-check` 可单独调做范围挑战。
+- `br-test` / `br-debug` / `br-verify` / `br-review`：负责代码实现的测试、调试、验收与质量把控。`/br-debug` 可单独排查某个失败任务，`/br-review` 可单独审查当前 Diff。
 - `br-ship`：负责最终交付的 Changelog 更新与代码合并推送。
+
+> 分步路径命令一览见上方"两种用法"章节：`/idea` → `/br-plan` →（`/br-scope-check` 可选）→ `/run` → `/br-review` → `/br-ship`，任意一步做完会提示下一步。
 
 ---
 
@@ -146,7 +148,7 @@ AI 工作流最容易失败的原因通常不是 AI 写不了代码，而是：*
 ```
 严重性自适应分级（S1 / S2 / S3）
   │
-  ├── S1 极速路：单文件/文案/配置微调 → 修复 → 测试 → ship
+  ├── S1 极速路：单文件/文案/配置微调 → 复现测试 → 修复 → 全量测试 → ship
   ├── S2 标准路：单模块业务逻辑错误 → blame 取证 → TDD → 全量测试 → ship
   └── S3 深度路：跨模块/偶发异常 → 7步系统化 Debug → TDD → 多维验收与审查 → ship
 ```
@@ -191,12 +193,19 @@ node cli/buildrail.js init
 
 ```text
 BuildRail/
-├── commands/                   # 顶层自动工作流入口（用户层）
-│   ├── br-bugfix.md
-│   ├── br-iterate.md
-│   ├── br-full-dev.md
-│   ├── br-plan.md
-│   ├── run.md                  # 任务执行循环（被 /br-full-dev 自动调用）
+├── commands/                   # 顶层工作流入口（用户层）
+│   ├── br-full-dev.md          # 全自动路径：需求→发布一气呵成
+│   ├── br-bugfix.md            # Bug 修复（S1/S2/S3 自适应）
+│   ├── br-iterate.md           # 快速迭代（带范围门控）
+│   ├── idea.md                 # 分步路径入口：智能分流到探索 skill
+│   ├── br-office-hours.md      # 大方向探索（可直接调，跳过分流）
+│   ├── br-brainstorming.md     # 小功能探索（可直接调，跳过分流）
+│   ├── br-plan.md              # 设计→实现计划
+│   ├── br-scope-check.md      # 范围挑战（可选）
+│   ├── run.md                  # 任务执行循环（被 /br-full-dev 自动调用，也可独立用）
+│   ├── br-review.md            # 代码审查
+│   ├── br-ship.md              # 发布
+│   ├── br-debug.md             # 单任务深度调试
 │   └── br-status.md            # 查看运行进度与跳过诊断
 ├── skills/                     # 基础技能单元（被顶层自动调用）
 │   ├── idea/

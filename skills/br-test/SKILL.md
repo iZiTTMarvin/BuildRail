@@ -12,6 +12,12 @@ description: |
 
 **配套参考**：`references/testing-patterns.md` 包含测试结构、命名规范、断言、Mock 模式、React/API/E2E 测试的完整代码模板。本 skill 聚焦"为什么这样写测试"，具体"怎么写"按需查阅该文件。
 
+## 运行状态约定
+
+本 skill 通常被 `/run`、`/br-bugfix`、`/br-iterate` 编排调用。按 `shared/state-schema.md` 的写入契约：
+- 若已有活跃 run（`run.status === "running"`）→ 不覆盖 run，只记录测试结果（FAIL/PASS 状态）
+- 若无活跃 run（用户单独触发且无父流程）→ 覆盖式初始化：`run.command: "br-test"`、`run.path: "step"`、`phase.current: "test"`、`phase.label: "测试驱动开发"`
+
 ## 硬性规则
 
 - **测试先行。** 写实现代码之前，先写一个会失败的测试。没有例外。

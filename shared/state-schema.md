@@ -92,6 +92,22 @@
     "lint": { "status": "skip", "evidence": "未检测到 lint 命令" }
   },
 
+  // —— 代码审查结果（br-review 产出，br-full-dev 阶段 4 / /br-review 消费） ——
+  "review": {
+    "verdict": "pass",                       // pass（可发布） | conditional（需修小问题） | block（有 Critical/HIGH 必须修）
+    "critical_count": 0,
+    "high_count": 0,
+    "issues": [                              // 按严重度降序
+      {
+        "severity": "high",                  // critical | high | medium | low | nit
+        "file": "src/auth/login.ts",
+        "line": 42,
+        "summary": "密码明文传给日志",
+        "suggestion": "改为只记录用户 ID"
+      }
+    ]
+  },
+
   // —— 自动决策日志（全自动路径 A 的"我替你做了这些决策"清单） ——
   "auto_decisions": [
     {
@@ -130,16 +146,29 @@
 
 **原则：每个 skill/command 在关键节点原子更新 state.json。** 不要积累到最后一次性写——用户可能在任意时刻打开 `/br-status`。
 
+### command 级 vs skill 级写入
+
+state.json 的初始化分两层，避免"必须经过 command 才有 state"的隐含假设：
+
+- **command 级（顶层入口：full-dev/bugfix/iterate/run/idea/br-plan/br-review/br-ship/br-debug/br-scope-check/br-office-hours/br-brainstorming）**：用户直接 `/xxx` 触发时，**覆盖式重写整个文件**，建立新的 run。这是"一次运行"的起点。
+- **skill 级（底层能力：所有 `skills/*/SKILL.md`）**：每个 skill 开头有一段"运行状态约定"，声明自己启动时**若 state.json 不存在或不是自己这次 run，则按自己的 command 名初始化**；若已是当前 run，则只更新自己负责的字段（phase、tasks、verify、review 等）。
+
+这样设计的原因：skill 可能被 command 编排调用（经过 command 初始化），也可能被 agent 自动激活（没经过 command）。两种情况下 skill 自己都能保证 state.json 可用，`/br-status` 不会因为"没经过 command"就显示旧状态。
+
+> **判定"要不要覆盖式初始化"**：读 state.json，若 `run.status === "running"`（有活跃 run）→ 本 skill 是被上层编排调用的子步骤，**只更新自己负责的字段，不覆盖 run**；若没有活跃 run（文件不存在、status 非 running）→ 本 skill 是入口（用户单独触发或被自动激活），覆盖式初始化。**不靠 command 名匹配**——因为 br-debug 被 `/br-bugfix` 调用时 command 名是 "br-bugfix" 不是 "br-debug"，靠名字匹配会误判为新 run 而覆盖掉父流程状态。
+
 ### 各角色的写入职责
 
 | 角色 | 写入时机 | 写入字段 |
 |------|---------|---------|
-| **顶层命令启动**（full-dev/bugfix/iterate/run） | run 开始 | 覆盖式重写整个文件：`run`（id/command/path/started_at/status=running）、`phase.current`、`tasks`（从 plan 解析，全 pending）、`stats` |
+| **顶层命令启动**（full-dev/bugfix/iterate/run/idea/br-plan/br-scope-check/br-review/br-ship/br-debug/br-office-hours/br-brainstorming） | run 开始 | 覆盖式重写整个文件：`run`（id/command/path/started_at/status=running）、`phase.current`、`phase.label` |
+| **skill 启动自检**（每个 skill 开头的"运行状态约定"） | skill 被调用时 | 若非当前 run → 按 skill 自己的 command 名初始化 `run`/`phase`；若是当前 run → 只更新自己负责的字段 |
 | **路由判断**（idea / full-dev 阶段1） | 判定后立即 | `auto_decisions` += {phase:explore, decision:路由到X, reason, auto} |
 | **阶段决策**（full-dev 各阶段、scope-check HIGH 处理） | 每个决策后 | `auto_decisions` += 对应条目；`auto` 字段由是否全自动决定（path=full-auto 且自动处理 → true；path=step 且用户选 → false） |
 | **任务状态变化**（run 执行循环） | 状态每次变化 | 对应 `tasks[i].status`、`attempts`、`started_at`/`finished_at`、`verify` |
 | **调试失败**（br-debug 重试耗尽） | 返回 unresolved/partial 时 | 对应 `tasks[i].failure`（reason/summary/evidence/root_cause_guess/tried/next_steps）、`attempts`、`status=skipped\|failed` |
 | **全量验证**（run 第四步） | 每项跑完 | `global_check.test/build/lint` |
+| **代码审查**（br-review） | 审查完成 | `review.verdict`、`review.critical_count`、`review.high_count`、`review.issues[]`（按严重度降序）；verdict=block 时禁止 br-ship 放行 |
 | **运行结束** | 完成/失败/中止 | `run.status`、`run.updated_at`、`phase.current`（completed 时清空或标记 done） |
 
 ### `failure.reason` 枚举

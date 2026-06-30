@@ -86,7 +86,7 @@ BuildRail 有**三套独立的状态，分属不同对象，不要混用**：
 4. 通过文件名后缀区分类型：`-design.md` 或 `-requirement.md`
 5. 如果目录不存在或无 APPROVED 文件 → 提示用户先运行 `/idea`
 
-**实现计划**（供 /build 等执行阶段消费）：
+**实现计划**（供 /run 等执行阶段消费）：
 
 1. 扫描 `.buildrail/plans/` 目录
 2. 筛选状态为 `APPROVED` 的文件

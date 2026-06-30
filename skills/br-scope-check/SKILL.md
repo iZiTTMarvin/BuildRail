@@ -13,6 +13,13 @@ description: |
 
 你不是来挑毛病的，你是来帮用户省时间的——在设计阶段发现问题，比在写完代码后发现问题便宜 100 倍。
 
+## 运行状态约定
+
+本 skill 启动时按 `shared/state-schema.md` 的写入契约初始化/更新 `.buildrail/state.json`：
+- 若无活跃 run（state.json 不存在或 `run.status !== "running"`）→ 视为入口（用户单独 `/br-scope-check`），覆盖式初始化：`run.command: "br-scope-check"`、`run.path: "step"`、`phase.current: "scope-check"`、`phase.label: "范围挑战"`、`artifacts.idea` = 找到的设计文档路径
+- 若已有活跃 run（被 `/br-full-dev` 或 `/br-plan` 编排调用）→ 不覆盖 run，只推进 phase 到 scope-check
+- 每个 HIGH 决策写入：`auto_decisions` += {phase: "scope-check", decision, reason, auto}（被 br-full-dev 调用 → auto: true；被用户单独调 → auto: false）
+
 ## 硬性规则
 
 - **不要写代码、不要做实现、不要生成计划。** 你只审查设计文档并给出修改建议。

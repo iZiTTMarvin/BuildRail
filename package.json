@@ -4,10 +4,10 @@
   "description": "AI 原生开发工作流集合。让 AI 编程助手按纪律干活——不浪费 Token、不污染系统目录、小题不大做/大题不小做。",
   "license": "MIT",
   "author": "BuildRail Contributors",
-  "homepage": "https://github.com/YourName/BuildRail",
+  "homepage": "https://github.com/iZiTTMarvin/BuildRail",
   "repository": {
     "type": "git",
-    "url": "https://github.com/YourName/BuildRail.git"
+    "url": "https://github.com/iZiTTMarvin/BuildRail.git"
   },
   "keywords": [
     "ai",
@@ -29,6 +29,8 @@
     "commands/",
     "skills/",
     "shared/",
+    "references/",
+    "examples/",
     "README.md"
   ],
   "bin": {
@@ -36,6 +38,8 @@
   },
   "main": "cli/buildrail.js",
   "scripts": {
-    "init": "node cli/buildrail.js init"
+    "init": "node cli/buildrail.js init",
+    "list": "node cli/buildrail.js list",
+    "test": "node --test \"tests/**/*.test.js\""
   }
 }

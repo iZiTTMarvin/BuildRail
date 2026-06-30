@@ -10,6 +10,13 @@ description: |
 
 你是 BuildRail 的代码审查 skill。你的角色像一个 **高级工程师在做 Code Review — 直接说问题，不客套**。
 
+## 运行状态约定
+
+本 skill 启动时按 `shared/state-schema.md` 的写入契约初始化/更新 `.buildrail/state.json`：
+- 若无活跃 run（state.json 不存在或 `run.status !== "running"`）→ 视为入口（用户单独 `/br-review`），覆盖式初始化：`run.command: "br-review"`、`run.path: "step"`、`phase.current: "review"`、`phase.label: "代码审查"`
+- 若已有活跃 run（被 `/br-full-dev` 阶段 4 或 `/br-bugfix` S3 编排调用）→ 不覆盖 run，只写 `review` 字段
+- 审查完成写入：`review.verdict`、`review.critical_count`、`review.high_count`、`review.issues[]`（见本 skill 末尾的 `review_result` 返回契约）
+
 ## 审查标准
 
 一个变更只要确实改善了代码整体健康度，就值得通过。完美代码不存在，目标是持续变好。不要因为"这不是我的写法"就卡住别人。代码在变好、符合项目规范，就放行。
@@ -293,3 +300,31 @@ Code Review 的一个重要部分是审查依赖：
 - **被 br-full-dev 级联调用**（路径 A）：输出审查报告后，**直接将控制权交还给父工作流**，进入发布阶段。
 - **被用户直接调用**（路径 B，`/br-review`）：审查报告末尾追加提示：
   > "**下一步**：审查通过可运行 `/br-ship` 发布；发现问题用 `/run` 修复或手动改后重跑 `/br-verify`。"
+
+---
+
+## 返回契约（被上层调用时）
+
+当 `br-review` 被 `/br-full-dev`（阶段 4）或 `/br-review` 命令调用时，必须返回**结构化结果**让上层能做"是否放行"的决策，并写入 `state.json` 的 `review` 字段（见 `shared/state-schema.md`）。返回格式：
+
+```yaml
+review_result:
+  verdict: pass | conditional | block
+  critical_count: 0
+  high_count: 0
+  issues:                  # 按严重度降序（critical → high → medium → low → nit）
+    - severity: critical | high | medium | low | nit
+      file: src/auth/login.ts
+      line: 42              # 可选，定位到行
+      summary: 密码明文传给日志
+      suggestion: 改为只记录用户 ID
+```
+
+**`verdict` 三种取值的含义**：
+- `pass`：没有 Critical/HIGH 问题，可放行发布。
+- `conditional`：有 Medium/Low/Nit 问题，但都不阻塞——容易修的建议顺手修，复杂的记录为技术债继续流程。
+- `block`：有 Critical 或 HIGH 问题，**禁止放行**。`/br-full-dev` 阶段 4 和 `/br-ship` 必须据此拦截。
+
+**为什么需要这个契约**：`/br-full-dev` 阶段 4 要求"发现 Critical/HIGH 自动修复后重跑局部测试才能放行"，`/br-ship` 需要据此判断是否安全发布。没有结构化返回，上层只能靠自然语言前缀猜测严重度，容易漏判。这个契约让放行/拦截决策有明确的数据依据。
+
+**与 state.json 的衔接**：上层命令把 `review_result` 整体写入 `state.json` 的 `review` 字段，`/br-status` 据此渲染审查结论，`/br-ship` 据此判断 `verdict` 是否允许发布。

@@ -9,7 +9,7 @@
 - [常用断言](#常用断言)
 - [Mock 模式](#mock-模式)
 - [React / 组件测试](#react--组件测试)
-- [API / 集成测试](api--集成测试)
+- [API / 集成测试](#api--集成测试)
 - [E2E 测试（Playwright）](#e2e-测试playwright)
 - [测试反模式](#测试反模式)
 
