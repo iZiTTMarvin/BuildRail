@@ -16,7 +16,7 @@ description: |
 ## 硬性规则
 
 - **不要写代码、不要做实现、不要生成计划。** 你只审查设计文档并给出修改建议。
-- **每个 HIGH 问题单独用 AskUserQuestion 让用户决定。** 不要批量处理。
+- **按调用者处理 HIGH 问题。** 被 br-full-dev 级联调用（路径 A）→ 自动批量处理；被用户单独调用（`/br-scope-check`，路径 B）→ 逐条询问。判定见 `shared/two-paths.md`。
 - **不引入外部依赖。** 只基于本地文件和已有知识做判断。
 - **审查最多 2 轮。** 第 1 轮发现问题 → 修复设计文档 → 第 2 轮确认。2 轮后仍有 HIGH → 记录为 tradeoff，不阻塞流程。
 
@@ -24,25 +24,17 @@ description: |
 
 ### 第一步：读取设计文档
 
-扫描 `.buildrail/idea/` 目录，找到最新的 APPROVED 设计文档或需求文档：
+按 `shared/file-ops.md` 的原语探测，**不要写死 bash 命令**：
 
-```bash
-ls -lt .buildrail/idea/*-design.md .buildrail/idea/*-requirement.md 2>/dev/null
-```
+- **P1**：在 `.buildrail/idea/` 下找最新的 `-design.md` 或 `-requirement.md`
+  - 找到 → 读取文档内容，继续
+  - 未找到 → 提示用户："没有找到已确认的设计/需求文档。请先运行 `/idea` 或 `/br-office-hours` / `/br-brainstorming` 产出文档。"
 
-- 找到 → 读取文档内容，继续
-- 未找到 → 提示用户："没有找到已确认的设计/需求文档。请先运行 `/idea` 或 `/br-office-hours` / `/br-brainstorming` 产出文档。"
+同时读取项目基础信息（同样按原语）：
 
-同时读取项目基础信息：
-
-```bash
-cat README.md 2>/dev/null || echo "无 README"
-cat CLAUDE.md 2>/dev/null || echo "无 CLAUDE.md"
-# 了解目录结构
-ls -la
-# 了解技术栈
-cat package.json 2>/dev/null | head -20 || cat pyproject.toml 2>/dev/null | head -20 || echo "无标准配置"
-```
+- **P2**：读取 `README.md`、`CLAUDE.md`（不存在则报告"无"）
+- **P4**：列出项目根的文件与一级目录
+- **P2**：读取 `package.json` 或 `pyproject.toml`（取存在的第一个，了解技术栈）
 
 ### 第二步：6 项检查
 
@@ -121,6 +113,43 @@ LOW: 0
 
 ### 第四步：处理 HIGH 问题
 
+**按调用者分流**（见 `shared/two-paths.md`）。scope-check 必须知道自己被谁调用，因为处理 HIGH 的策略不同：
+
+- **被 br-full-dev 级联调用**（路径 A，全自动）→ 走"自动批量处理"，不问用户
+- **被用户直接调用**（`/br-scope-check`，路径 B，分步）→ 走"逐条询问"，让用户拍板
+
+#### 路径 A：被 br-full-dev 调用 → 自动批量处理（不问用户）
+
+**原则：不打断。** 把所有 HIGH 问题一次性汇总，按下面的默认策略自动处理，最后输出一份"我替你做了这些决策"的清单。
+
+对每个 HIGH 问题，自动按以下优先级决策（不问用户）：
+
+1. 若该 HIGH 有明确的"推荐修改"且改动可控 → **自动修改设计文档**，重跑该项检查。
+2. 若推荐修改不明确或改动过大 → **自动标记为 tradeoff**，记录到设计文档的"风险与 Tradeoff"区块。
+
+**每个自动决策写入 state.json**（见 `shared/state-schema.md` 的 `auto_decisions` 数组）：
+```jsonc
+{
+  "phase": "scope-check",
+  "decision": "[HIGH-1] <标题>：自动修改了 <章节>",
+  "reason": "推荐修改明确且改动可控",
+  "auto": true
+}
+```
+这是 `/br-status` 渲染"我替你自动做的决策"清单的数据来源。**不写进 state，用户就看不到全自动模式到底替他决定了什么。**
+
+处理完成后，输出**一次**汇总通知（不是每个问题一次）：
+
+```
+🟡 Scope Check 完成（全自动）。发现 N 个 HIGH 问题，已自动处理：
+  - [HIGH-1] <标题>：自动修改了 <章节>
+  - [HIGH-2] <标题>：标记为 tradeoff
+  ...
+完整结果已追加到设计文档末尾。决策已记录，运行 /br-status 可查看。
+```
+
+#### 路径 B：被用户单独调用 → 逐条询问（让用户拍板）
+
 **红线：每个 HIGH 问题单独问一次，绝不批量处理。** 用户对一个问题的回答常常会改变你对下一个问题的判断；批量问会强迫用户在信息不足时做决策。
 
 对每个 HIGH 问题，用 AskUserQuestion 按以下标准模板询问：
@@ -148,12 +177,16 @@ options:
 **处理流程**：
 - 用户选择"按建议修改"→ 修改设计文档对应部分，**修改后立即重跑这一项检查**（不等所有 HIGH 问完）。
 - 用户选择"接受风险"或"标记为 tradeoff"→ 记录决策，继续下一个 HIGH。
+- **每个决策写入 state.json**（见 `shared/state-schema.md` 的 `auto_decisions`）：`auto: false`（因为是用户选的），`reason` 填用户的选择理由或"用户接受风险"。
 - 全部 HIGH 处理完后，重新运行全套检查（第 2 轮）。第 2 轮的结果覆盖第 1 轮。
 
-**终止条件**：
+然后直接继续流程，**不等待用户确认**。
+
+#### 终止条件（两种路径共用）
+
 - 第 1 轮 HIGH=0 → ✅ 直接通过
 - 第 2 轮 HIGH=0 → ✅ 通过
-- 第 2 轮仍有 HIGH → 记录为 tradeoff，🟡 通知用户"有 N 个未解决的 HIGH 问题，已记录为 tradeoff。计划阶段会标注这些风险。"
+- 第 2 轮仍有 HIGH → 记录为 tradeoff，继续（不阻塞）
 
 ### 第五步：输出完成信号
 

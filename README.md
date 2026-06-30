@@ -6,9 +6,19 @@
 
 ## 快速上手
 
-### 1. 直接描述你要做什么
+### 1. 一行命令安装
 
-安装完成后（见下方安装章节），你不需要再手动挑选复杂的底层命令，只需根据目标规模，直接向你的 AI 助手下达最终意图。
+```bash
+npx buildrail init
+```
+
+安装器会列出支持的 AI 助手（Claude Code / Windsurf / OpenCode / Cursor），你选一个序号，它自动把命令和技能复制到对应目录。**不需要手动软链接、不需要碰 PowerShell/bash 语法。**
+
+> 没装 Node？也可以直接 `git clone` 后在仓库目录跑 `node cli/buildrail.js init`。
+
+### 2. 直接描述你要做什么
+
+安装完成后，你不需要再手动挑选复杂的底层命令，只需根据目标规模，直接向你的 AI 助手下达最终意图。
 
 BuildRail 会自动评估改动范围，自主拆解并执行：
 
@@ -25,9 +35,54 @@ BuildRail 会自动评估改动范围，自主拆解并执行：
 
 > **注意：** 如果你使用的是 Windsurf，无需加 `/` 前缀，直接输入命令即可。
 
-### 2. 本地化状态查看
+### 3. 本地化状态查看
 
 所有的执行计划、需求探索与技术方案，都会**绝对严格**地生成在当前项目根目录的 `.buildrail/` 文件夹下，不会污染你的 C 盘或其他系统目录。
+
+---
+
+## 两种用法：全自动 vs 分步
+
+BuildRail 不用"开关参数"，而是用**两个不同的入口**满足两种用户。斜杠命令的心智是"命令名 + 说人话"，塞 `--auto`/`--manual` 既反直觉又难记。
+
+### 路径 A：全自动（新手懒人）
+
+```
+/br-full-dev 帮我开发登录注册功能
+```
+
+零参数、零门禁、一路跑到底。设计→计划→执行→审查→发布一气呵成，不问不等。跑完用 `/br-status` 看它替你做了什么决策。
+
+### 路径 B：分步（资深 / 敏感改动）
+
+```
+/idea 帮我开发登录注册功能      → 做完提示"下一步可 /br-plan"
+/br-plan                        → 做完提示"下一步可 /run"
+/run                            → 做完提示"下一步可 /br-review"
+/br-review                      → 做完提示"下一步可 /br-ship"
+/br-ship                        → 发布
+```
+
+每个命令做完**自然停**（不是门禁打断，是职责边界），并提示下一步。你随时可介入、改、跳过某步。想对范围做挑战可加 `/br-scope-check`（可选）。
+
+详见 `shared/two-paths.md`。
+
+---
+
+## 可观测性：随时知道发生了什么 `/br-status`
+
+全自动模式最大的风险是"黑盒——跑完了但不知道中间发生了什么"。BuildRail 用 `.buildrail/state.json` 记录每次运行的完整进度，`/br-status` 把它渲染成人类可读的报告。
+
+```
+/br-status          # 看当前/最近一次运行的进度
+/br-status latest   # 额外展开所有跳过/失败任务的完整诊断
+```
+
+你会看到：现在跑到哪个阶段、每个任务什么状态、**为什么某个任务被跳过**（现象/证据/根因猜测/试过什么/下一步建议）、全自动（`/br-full-dev`）跑完后工具替你自动做了哪些决策。
+
+**跑飞了别慌**——`/br-status` 永远告诉你发生了什么、怎么办。看完诊断后，`/br-debug <task-id>` 单独深度排查，或 `/run 从 task-NNN 开始` 补做。
+
+> 新手第一次看完整产物长什么样？读 [`examples/todo-app/WALKTHROUGH.md`](examples/todo-app/WALKTHROUGH.md)，5 分钟走完"丢一句话 → 自动跑 → 查看进度 → 补做跳过的任务"的完整闭环（含一次真实的失败演示）。
 
 ---
 
@@ -103,38 +158,23 @@ BuildRail 的级联调用极具特色：当 `/br-full-dev` 顺序触发 `/br-pla
 
 ## 安装
 
-由于 BuildRail 的极简 Markdown 架构，它不需要任何复杂的依赖脚本。克隆到本地后，把 `commands/` 和 `skills/` 复制或链接到你目标 agent 的对应目录即可。
-
-### macOS / Linux
+**推荐方式：一键安装器**
 
 ```bash
-# 1. 克隆
-git clone https://github.com/YourName/BuildRail.git ~/.buildrail-system
-
-# 2. 链接到 Claude Code
-ln -s ~/.buildrail-system/commands/* ~/.claude/commands/
-ln -s ~/.buildrail-system/skills/* ~/.claude/skills/
-
-# Windsurf / OpenCode：链接到对应的自定义 Workflow / Skill 目录
+npx buildrail init
 ```
 
-### Windows (PowerShell)
+交互式选择目标 AI 助手，自动复制 `commands/` 和 `skills/` 到对应目录。支持 Claude Code、Windsurf、OpenCode、Cursor（在 `cli/buildrail.js` 的 `AGENTS` 表里加一项即可扩展）。
 
-```powershell
-# 1. 克隆（用你喜欢的目录）
-git clone https://github.com/YourName/BuildRail.git $env:USERPROFILE\.buildrail-system
+**本地方式（无需 npm）**
 
-# 2. 复制到 Claude Code 配置目录
-Copy-Item $env:USERPROFILE\.buildrail-system\commands\* $env:USERPROFILE\.claude\commands\ -Recurse -Force
-Copy-Item $env:USERPROFILE\.buildrail-system\skills\* $env:USERPROFILE\.claude\skills\ -Recurse -Force
-
-# 如需软链接（需开启开发者模式）：
-# New-Item -ItemType SymbolicLink -Path $env:USERPROFILE\.claude\commands -Target $env:USERPROFILE\.buildrail-system\commands
+```bash
+git clone https://github.com/YourName/BuildRail.git
+cd BuildRail
+node cli/buildrail.js init
 ```
 
-### 通用方案（任意 agent）
-
-如果你的 agent 不支持软链接或符号链接，直接把 `commands/` 和 `skills/` 整个目录复制到对应位置即可。BuildRail 不依赖路径，所有引用都用相对目录描述。
+> BuildRail 不依赖运行时——所有 skill 都是 Markdown，由你的 AI 助手加载。安装器只是把文件放到对的位置。
 
 ---
 
@@ -152,24 +192,35 @@ Copy-Item $env:USERPROFILE\.buildrail-system\skills\* $env:USERPROFILE\.claude\s
 ```text
 BuildRail/
 ├── commands/                   # 顶层自动工作流入口（用户层）
-│   ├── br-bugfix.md            
-│   ├── br-iterate.md           
-│   ├── br-full-dev.md          
-│   ├── br-plan.md              
-│   └── run.md                  # 任务执行循环（被 /br-full-dev 自动调用）
+│   ├── br-bugfix.md
+│   ├── br-iterate.md
+│   ├── br-full-dev.md
+│   ├── br-plan.md
+│   ├── run.md                  # 任务执行循环（被 /br-full-dev 自动调用）
+│   └── br-status.md            # 查看运行进度与跳过诊断
 ├── skills/                     # 基础技能单元（被顶层自动调用）
-│   ├── idea/                   
-│   ├── br-office-hours/        
-│   ├── br-brainstorming/       
-│   ├── br-scope-check/         
-│   ├── br-task-breakdown/      
-│   ├── br-debug/               
-│   ├── br-verify/              
-│   ├── br-review/              
-│   ├── br-test/                
-│   └── br-ship/                
+│   ├── idea/
+│   ├── br-office-hours/
+│   ├── br-brainstorming/
+│   ├── br-scope-check/
+│   ├── br-task-breakdown/
+│   ├── br-debug/
+│   ├── br-verify/
+│   ├── br-review/
+│   ├── br-test/
+│   └── br-ship/
+├── shared/                     # 公共契约
+│   ├── output-format.md        # 文档命名与状态枚举
+│   ├── file-ops.md             # 跨平台文件操作原语（不写死 bash）
+│   ├── two-paths.md            # 两条路径：全自动 vs 分步
+│   └── state-schema.md         # .buildrail/state.json 结构与写入契约
+├── cli/                        # 一键安装器（零依赖 Node）
+│   └── buildrail.js
+├── examples/                   # 新手首跑参照
+│   └── todo-app/               # 完整产物存档 + WALKTHROUGH
 ├── references/                 # 通用检查清单与最佳实践（被 skill 引用）
-└── shared/                     # 公共契约与数据交换格式
+├── package.json                # npm 分发元数据（bin: buildrail）
+└── README.md
 ```
 
 > **给贡献者**：在添加新的会编排多个 skill 的命令、或在引入"包装"现有 skill 的新 skill 之前，先读 `references/orchestration-patterns.md`，了解推荐模式和反模式。

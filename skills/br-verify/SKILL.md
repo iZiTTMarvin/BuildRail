@@ -40,13 +40,7 @@ description: |
 | 描述 UI 状态 | 检查代码实现 + 运行测试 | "空列表时显示'暂无数据'" |
 | 描述错误处理 | 构造错误场景 + 验证 | "API 返回 401 时显示登录过期" |
 
-**自动检测项目验证命令**：
-```bash
-# 检测测试框架和命令
-cat package.json 2>/dev/null | grep -E '"(test|lint|build|typecheck)"' || true
-cat pyproject.toml 2>/dev/null | grep -E '(test|lint|build)' || true
-cat Makefile 2>/dev/null | head -20 || true
-```
+**自动检测项目验证命令**：按 **shared/file-ops.md 的 P3** 从 `package.json` / `pyproject.toml` / `Makefile` 中提取 test/lint/build 命令清单（读全文后结构化解析，不要用 `grep -E` 抓取）。
 
 ### 第三步：执行验证
 
@@ -82,9 +76,24 @@ FAIL: 1
 
 ### 第五步：返回结果
 
-**如果被 `/run` 调用**：
-- PASS=全部 → 返回 `PASS` + 证据摘要
-- FAIL>0 → 返回 `FAIL` + 失败的验收标准 + 证据
+**如果被 `/run` 调用**（返回结构化结果，让 /run 写进 state.json，见 `shared/state-schema.md`）：
+
+```yaml
+verify_result:
+  pass: 2                    # 通过的验收标准数
+  fail: 1                    # 失败的验收标准数
+  evidence: "2 passed, 1 failed: <失败的验收标准摘要>"
+  failures:                  # fail > 0 时必填，给 br-debug 用
+    - 验收标准: <文本>
+      实际输出: <文本>
+      错误位置: <文件:行号或函数名，若有>
+  timeout: false             # 若超时，true
+```
+
+- 全部 PASS → 返回 `pass: N, fail: 0` + 证据摘要
+- FAIL>0 → 返回 `fail: M` + `failures[]`（br-debug 会读这些定位根因）
+
+`/run` 会把 `pass`/`fail`/`evidence` 写到对应任务的 `tasks[i].verify` 字段，供 `/br-status` 渲染。
 
 **如果被用户直接调用**：
 - 输出完整的验收结果表
@@ -96,7 +105,7 @@ FAIL: 1
 |------|----------|
 | 验收标准太模糊（如"系统正常"） | 标记为 SKIP："验收标准不够具体，无法自动验证。请补充具体的验证命令或预期行为。" |
 | 验证命令不存在（项目没有测试框架） | 降级为代码检查：读取涉及文件，检查是否实现了相关功能 |
-| 验证命令超时（>30s） | 标记为 TIMEOUT，记录最后输出 |
+| 验证命令超时（>30s） | 标记为 TIMEOUT，记录最后输出。**被 /run 调用时**返回 `verify_result.timeout: true`，/run 会据此给任务标 `failure.reason: "test_timeout"` |
 | 需要运行中的服务（如 curl localhost） | 尝试启动服务，如果无法启动 → SKIP 并说明原因 |
 
 ## 语气风格

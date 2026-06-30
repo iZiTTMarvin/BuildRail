@@ -60,16 +60,21 @@
 
 ### 状态机区分
 
-BuildRail 有**两套独立的状态机**，不要混用：
+BuildRail 有**三套独立的状态，分属不同对象，不要混用**：
 
 1. **文档生命周期状态**（上面表格）——属于 idea/plan 文件本身。`/br-plan` 等 skill 通过读取 frontmatter 的 `状态: APPROVED` 来决定是否消费这份文档。
 2. **审查严重度等级**——属于 `br-scope-check` 的内部产出（HIGH / MEDIUM / LOW），以及它的派生态 Tradeoff。**不会**写入 idea/plan 的 frontmatter，而是追加在文档正文末尾的 `## Scope Check 结果` 区块里。
+3. **运行执行状态**——属于 `.buildrail/state.json`（见 `shared/state-schema.md`）。描述**当前这次运行**的进度（哪个任务在跑、哪个跳过、自动做了什么决策）。`/br-status` 读它渲染进度。**与文档状态完全独立**：一份 idea 文档可能 APPROVED 了，但运行状态显示 task-003 被跳过。
 
 举例：
 - 一份 idea 文档可以是 `状态: APPROVED`（已被用户接受），但末尾的 Scope Check 结果里还有 `HIGH: 2`（scope-check 发现了 2 个未解决问题）。
 - 这种"已批准但带风险"的状态由 `br-task-breakdown` 在拆分任务时读取并标注为 `## 风险与 Tradeoff`，进入计划文件。
+- 而 state.json 里记录的是：这次运行的 scope-check 阶段，HIGH-1 被自动修改、HIGH-2 被标记为 tradeoff（用户可用 `/br-status` 回看）。
 
-新增 skill 时注意：如果你产出的是 idea/plan 文档，用第一套；如果你产出审查/评估结果，用第二套并加 tally 注释。
+新增 skill 时注意：
+- 如果你产出的是 idea/plan 文档，用第一套。
+- 如果你产出审查/评估结果，用第二套并加 tally 注释。
+- 如果你在执行任务（run/verify/debug/bugfix），用第三套写入 state.json，让 `/br-status` 能实时反映。
 
 ## 下游发现机制
 

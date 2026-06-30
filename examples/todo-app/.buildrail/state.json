@@ -1,0 +1,121 @@
+{
+  "run": {
+    "id": "2026-06-25-1430",
+    "command": "br-full-dev",
+    "path": "full-auto",
+    "started_at": "2026-06-25T14:30:00",
+    "updated_at": "2026-06-25T14:52:30",
+    "status": "completed"
+  },
+  "phase": {
+    "current": "ship",
+    "label": "阶段 5：发布",
+    "entered_at": "2026-06-25T14:50:00"
+  },
+  "artifacts": {
+    "idea": ".buildrail/idea/2026-06-25-todo-requirement.md",
+    "plan": ".buildrail/plans/2026-06-25-todo-plan.md"
+  },
+  "tasks": [
+    {
+      "id": "task-001",
+      "title": "实现持久化层（TodoStore）",
+      "status": "done",
+      "size": "S",
+      "attempts": 0,
+      "verify": { "pass": 3, "fail": 0, "evidence": "3 passed in 0.04s" },
+      "started_at": "2026-06-25T14:35:00",
+      "finished_at": "2026-06-25T14:37:20"
+    },
+    {
+      "id": "task-002",
+      "title": "实现 TodoService（增删查改逻辑）",
+      "status": "skipped",
+      "size": "M",
+      "attempts": 3,
+      "verify": { "pass": 3, "fail": 1, "evidence": "3 passed, 1 failed: test_done_with_invalid_index" },
+      "failure": {
+        "reason": "verify_failed_3x",
+        "summary": "done(index) 传入越界序号时未按预期抛出错误",
+        "evidence": "测试 test_done_with_invalid_index 失败：预期抛出 RangeError，实际返回 undefined",
+        "root_cause_guess": "done() 没有对 index 做边界检查，直接访问数组导致 undefined",
+        "tried": [
+          "第1次：在 done() 末尾加 if(!task) throw → 仍失败，因为 index 是 number 0 但数组从 0 开始而用户序号从 1 开始",
+          "第2次：改成 tasks[index-1] 并加边界检查 → 仍有 case 漏（负数 index）"
+        ],
+        "next_steps": [
+          "用 Number.isInteger + 范围检查统一校验 index（1 <= index <= length）",
+          "或运行 /br-debug task-002 单独深度排查"
+        ]
+      },
+      "started_at": "2026-06-25T14:40:00",
+      "finished_at": "2026-06-25T14:48:30"
+    },
+    {
+      "id": "task-003",
+      "title": "实现 CLI 入口",
+      "status": "skipped",
+      "size": "S",
+      "attempts": 0,
+      "failure": {
+        "reason": "dependency_missing",
+        "summary": "依赖 task-002 被跳过，本任务无法实现"
+      },
+      "started_at": null,
+      "finished_at": null
+    },
+    {
+      "id": "task-004",
+      "title": "数据文件路径与初始化",
+      "status": "done",
+      "size": "S",
+      "attempts": 0,
+      "verify": { "pass": 3, "fail": 0, "evidence": "3 passed in 0.05s" },
+      "started_at": "2026-06-25T14:49:00",
+      "finished_at": "2026-06-25T14:50:40"
+    }
+  ],
+  "global_check": {
+    "test": { "status": "fail", "evidence": "6 passed, 1 failed（task-002 遗留）" },
+    "build": { "status": "pass", "evidence": "node 语法检查通过（无构建步骤）" },
+    "lint": { "status": "skip", "evidence": "未检测到 lint 命令" }
+  },
+  "auto_decisions": [
+    {
+      "phase": "explore",
+      "decision": "路由到 br-brainstorming",
+      "reason": "判断为小功能增强（在空项目上加一个具体 CLI 工具）",
+      "auto": true
+    },
+    {
+      "phase": "explore",
+      "decision": "设计文档默认采纳为 APPROVED",
+      "reason": "auto 模式，门禁降级为通知",
+      "auto": true
+    },
+    {
+      "phase": "scope-check",
+      "decision": "[MEDIUM-1] 持久化测试用 TODO_FILE 隔离 → 自动采纳建议",
+      "reason": "推荐明确且改动可控，已在计划 task-004 落实",
+      "auto": true
+    },
+    {
+      "phase": "plan",
+      "decision": "实现计划默认采纳为 APPROVED",
+      "reason": "auto 模式，门禁降级为通知",
+      "auto": true
+    },
+    {
+      "phase": "execute",
+      "decision": "task-002 连续 3 次验收失败 → 自动跳过，依赖它的 task-003 一并跳过",
+      "reason": "按 run.md 3.4 重试上限规则",
+      "auto": true
+    }
+  ],
+  "stats": {
+    "total": 4,
+    "done": 2,
+    "skipped": 2,
+    "failed": 0
+  }
+}

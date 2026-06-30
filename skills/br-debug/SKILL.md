@@ -241,6 +241,36 @@ debug_result:
 
 **为什么需要这个契约**：`/run` 在重试 3 次后会把任务标记为 `⏭️ SKIPPED`；`/br-bugfix` S3 在重试 2 次后需要向用户输出诊断报告。没有结构化返回，上层只能凭自然语言做决策，容易遗漏关键证据。这个契约让上层在处理失败时能拿到足够信息做判断。
 
+**与 state.json 的衔接**（见 `shared/state-schema.md`）：`/run` 在调用 br-debug 后，会把这个返回结果转写到对应任务的 `failure` 字段。映射关系：
+
+| debug_result 字段 | state.json tasks[i].failure 字段 |
+|---|---|
+| `status: unresolved` + `attempts` | `reason: "debug_unresolved"` + `attempts` |
+| `failure_evidence[].实际输出` | `evidence` |
+| `root_cause_guess` | `root_cause_guess` |
+| —（br-debug 自己写） | `summary`（一句话现象概括） |
+| `next_steps` | `next_steps` |
+| 每次尝试的方向 | `tried`（数组） |
+
+因此 **br-debug 必须把"每次尝试了什么方向、结果如何"也返回**（追加到 yaml 的 `tried: []` 字段），否则 `/br-status` 的诊断会缺关键信息。完整返回格式：
+
+```yaml
+debug_result:
+  status: fixed | partial | unresolved
+  attempts: 2
+  summary: <一句话现象概括>          # 总是必填，让 /br-status 能显示
+  failure_evidence:                  # status != fixed 时必填
+    - 验收标准: <文本>
+      实际输出: <文本>
+      错误位置: <文件:行号或函数名>
+  root_cause_guess: <文本>           # status != fixed 时必填
+  tried:                             # 每次尝试的方向（status != fixed 时必填）
+    - "第1次：<方向> → <结果>"
+    - "第2次：<方向> → <结果>"
+  next_steps:                        # status != fixed 时必填
+    - <可执行的下一步建议>
+```
+
 ## 异常处理
 
 | 场景 | 处理方式 |

@@ -1,0 +1,41 @@
+{
+  "name": "buildrail",
+  "version": "0.1.0",
+  "description": "AI 原生开发工作流集合。让 AI 编程助手按纪律干活——不浪费 Token、不污染系统目录、小题不大做/大题不小做。",
+  "license": "MIT",
+  "author": "BuildRail Contributors",
+  "homepage": "https://github.com/YourName/BuildRail",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/YourName/BuildRail.git"
+  },
+  "keywords": [
+    "ai",
+    "ai-workflow",
+    "claude-code",
+    "windsurf",
+    "opencode",
+    "cursor",
+    "tdd",
+    "spec-driven",
+    "agent-skills",
+    "developer-tools"
+  ],
+  "engines": {
+    "node": ">=14"
+  },
+  "files": [
+    "cli/",
+    "commands/",
+    "skills/",
+    "shared/",
+    "README.md"
+  ],
+  "bin": {
+    "buildrail": "cli/buildrail.js"
+  },
+  "main": "cli/buildrail.js",
+  "scripts": {
+    "init": "node cli/buildrail.js init"
+  }
+}

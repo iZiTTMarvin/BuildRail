@@ -24,15 +24,11 @@ description: |
 
 ### 第一步：理解项目上下文
 
-只看本地文件，不做外部搜索：
+只看本地文件，不做外部搜索。按 `shared/file-ops.md` 的原语探测，**不要写死 bash 命令**：
 
-```bash
-# 读项目基础信息
-cat README.md 2>/dev/null || echo "无 README"
-cat CLAUDE.md 2>/dev/null || echo "无 CLAUDE.md"
-git log --oneline -10 2>/dev/null || echo "无 git 记录"
-ls -la
-```
+- **P2**：读取 `README.md` 和 `CLAUDE.md`（不存在则报告"无"，不报错）
+- **P8**：取最近 10 条 git 提交摘要（非 git 仓库则报告"无 git 记录"）
+- **P4**：列出项目根的文件与一级目录
 
 如果项目目录为空或没有 README → 跳过上下文，直接进追问。
 
@@ -115,11 +111,9 @@ ls -la
 
 ### 第五步：写设计文档
 
-用户选择方案后，写设计文档到 `.buildrail/idea/` 目录：
+用户选择方案后，写设计文档到 `.buildrail/idea/` 目录。
 
-```bash
-mkdir -p .buildrail/idea
-```
+按 **shared/file-ops.md 的 P6** 确保 `.buildrail/idea/` 存在（多数 agent 的写文件工具会自动创建父目录，直接写即可）。
 
 文件名格式：`YYYY-MM-DD-<topic>-design.md`
 
@@ -166,18 +160,20 @@ mkdir -p .buildrail/idea
 {追问中未解决的设计决策}
 ```
 
-### 第六步：用户确认
+### 第六步：确认与收尾
 
-写完文档后，用 AskUserQuestion 问用户：
+**按调用方式分流**（见 `shared/two-paths.md`）：
 
-> "设计文档已保存到 `.buildrail/idea/{文件名}`。请查看并确认。确认后状态会改为 APPROVED。"
+- **被 br-full-dev 级联调用**（路径 A）：状态直接置 APPROVED，通知"🟡 设计文档已生成（{路径}），交还控制权给父工作流"，**立即返回**，不等用户。
+- **被用户直接调用**（路径 B，`/idea` 路由过来或直接 `/br-office-hours`）：
+  > "设计文档已保存到 `.buildrail/idea/{文件名}`。请查看并确认。确认后状态会改为 APPROVED。"
+  - 用户确认 → 状态改为 APPROVED
+  - 用户要求修改 → 修改对应部分，重新确认
+  - 用户说"跳过" → 状态保持 DRAFT，提示后续 skill 会优先找 APPROVED 文档
 
-- 用户确认 → 状态改为 APPROVED
-- 用户要求修改 → 修改对应部分，重新确认
-- 用户说"跳过" → 状态保持 DRAFT，提示后续 skill 会优先找 APPROVED 文档
-
-确认后提示：
-> "设计文档已确认。你可以继续运行后续 BuildRail skill（如 `/plan`、`/build`）来推进。"
+确认后提示（路径 B）：
+> "✅ 设计文档已确认。
+> **下一步**：可运行 `/br-plan` 生成实现计划；或先 `/br-scope-check` 做范围挑战（可选）。"
 
 ## 异常处理
 

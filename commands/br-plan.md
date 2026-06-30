@@ -35,18 +35,14 @@ argument-hint: [可选：补充说明]
 
 ## 第一步：读取设计文档
 
-扫描 `.buildrail/idea/` 目录，找到最新的 APPROVED 设计/需求文档：
-
-```bash
-ls -lt .buildrail/idea/*-design.md .buildrail/idea/*-requirement.md 2>/dev/null
-```
+按 **shared/file-ops.md 的 P1** 在 `.buildrail/idea/` 下找最新的 `-design.md` 或 `-requirement.md`（读全文，不要用 `ls -lt`）。
 
 **判断**：
 
 | 情况 | 处理 |
 |------|------|
 | 找到 APPROVED 文档 | 读取，继续 |
-| 找到 DRAFT 文档 | 🟡 提示："找到 DRAFT 状态的文档 `{文件名}`。先确认再继续？" 用 AskUserQuestion：A) 确认文档，继续 B) 跳过确认，直接继续 C) 取消 |
+| 找到 DRAFT 文档 | 提示用户："找到 DRAFT 状态的文档 `{文件名}`，建议先确认。要继续吗？"（路径 B 默认停下等用户；若由 br-full-dev 级联调用，则视为已采纳，直接继续，见 `shared/two-paths.md`） |
 | 无文档 | 提示："没有找到设计/需求文档。请先运行 `/idea`（会自动分流到 `/br-office-hours` 或 `/br-brainstorming`）。" |
 
 读取文档内容，判断类型：
@@ -92,17 +88,16 @@ ls -lt .buildrail/idea/*-design.md .buildrail/idea/*-requirement.md 2>/dev/null
 
 ## 第四步：确认与收尾
 
-计划文件生成后，用 AskUserQuestion 让用户确认：
+计划文件生成后，**按调用方式**分流（见 `shared/two-paths.md`）：
 
-> "计划已保存到 `.buildrail/plans/{文件名}`。请查看并确认。"
+- **被 br-full-dev 级联调用**（路径 A）：状态直接置 APPROVED，通知一句"🟡 计划已生成（{路径}），交还控制权给父工作流"，**立即返回**，不等用户。
+- **被用户直接调用**（路径 B，`/br-plan`）：
+  - 提示用户查看计划，并询问是否确认（状态置 APPROVED）或修改。
+  - 用户要求修改 → 修改对应任务，重新确认。
 
-- 用户确认 → 状态改为 APPROVED
-- 用户要求修改 → 修改对应任务，重新确认
-
-确认后：
-> "✅ 计划已确认。共 X 个任务，涉及 Y 个文件。"
-- **级联调用**：如果是由顶层编排器（如 `/br-full-dev`）调用的本流程，在状态变为 APPROVED 后，**直接将控制权交还给父工作流**，继续后续执行。
-- **独立调用**：否则，提示用户可以运行后续 BuildRail 命令（如 `/run`）来执行计划。
+确认后输出（路径 B）：
+> "✅ 计划已确认。共 X 个任务，涉及 Y 个文件。
+> **下一步**：可运行 `/run` 执行计划；或先 `/br-scope-check` 做范围挑战（可选）。"
 
 ---
 

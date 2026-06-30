@@ -1,0 +1,24 @@
+# BuildRail 运行时状态——含错误细节和调试猜测，不进版本库
+# （仅 state.json；idea/ 和 plans/ 是文档，可以提交）
+.buildrail/state.json
+.buildrail/state-*.json
+
+# Node（用于 cli 安装器开发）
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 系统文件
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 编辑器
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+docs

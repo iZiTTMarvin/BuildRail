@@ -23,11 +23,7 @@ description: |
 
 ### 第一步：读取设计文档
 
-扫描 `.buildrail/idea/` 目录，找到最新的 APPROVED 文档：
-
-```bash
-ls -lt .buildrail/idea/*-design.md .buildrail/idea/*-requirement.md 2>/dev/null
-```
+按 **shared/file-ops.md 的 P1** 在 `.buildrail/idea/` 下找最新的 `-design.md` 或 `-requirement.md`。
 
 - 找到 → 读取文档内容
 - 未找到 → 提示用户先运行 `/idea`
@@ -36,20 +32,12 @@ ls -lt .buildrail/idea/*-design.md .buildrail/idea/*-requirement.md 2>/dev/null
 
 ### 第二步：扫描项目结构
 
-了解项目的实际目录结构，避免计划中的路径与实际不符：
+了解项目的实际目录结构，避免计划中的路径与实际不符。按 `shared/file-ops.md` 的原语探测，**不要写死 bash 命令**：
 
-```bash
-# 了解目录结构
-find . -type f -not -path './.git/*' -not -path './node_modules/*' -not -path './.buildrail/*' | head -50
-
-# 确认关键路径
-ls src/ 2>/dev/null || ls lib/ 2>/dev/null || ls app/ 2>/dev/null || echo "无标准源码目录"
-
-# 了解技术栈和测试模式
-cat package.json 2>/dev/null | head -20 || cat pyproject.toml 2>/dev/null | head -20
-ls *.config.* 2>/dev/null
-ls test/ tests/ spec/ __tests__/ 2>/dev/null
-```
+- **P5**：受限递归列出源码文件（排除 .git / node_modules / .buildrail / dist 等，前 50 个）
+- **P7**：定位源码目录（src / lib / app）和测试目录（test / tests / spec / __tests__）
+- **P2**：读取 `package.json` 或 `pyproject.toml`（取存在的第一个，了解技术栈和测试模式）
+- **P4**：列出 `*.config.*` 配置文件
 
 记录：
 - 源码目录在哪
@@ -138,9 +126,7 @@ task-003: 实现个人资料页（组件 + API + 测试）
 
 ### 第六步：写计划文件
 
-```bash
-mkdir -p .buildrail/plans
-```
+按 **shared/file-ops.md 的 P6** 确保 `.buildrail/plans/` 存在（多数 agent 的写文件工具会自动创建父目录，直接写即可）。
 
 文件名格式：`YYYY-MM-DD-<topic>-plan.md`
 

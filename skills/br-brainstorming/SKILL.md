@@ -23,13 +23,11 @@ description: |
 
 ### 第一步：探索项目上下文（快速）
 
-```bash
-# 快速了解项目现状
-git diff --stat HEAD~5 2>/dev/null || echo "无 git 记录"
-ls -la
-# 读关键配置文件
-cat package.json 2>/dev/null | head -30 || cat pyproject.toml 2>/dev/null | head -30 || cat Cargo.toml 2>/dev/null | head -30 || echo "无标准配置文件"
-```
+按 `shared/file-ops.md` 的原语探测，**不要写死 bash 命令**：
+
+- **P8**：最近 5 次提交的 diffstat 概览（非 git 仓库则报告"无 git 记录"）
+- **P4**：列出项目根的文件与一级目录
+- **P2**：读取 `package.json` / `pyproject.toml` / `Cargo.toml` 之一（取存在的第一个）
 
 了解：项目用的什么技术栈、最近的改动方向、目录结构。
 如果是空项目 → 跳过。
@@ -106,9 +104,7 @@ cat package.json 2>/dev/null | head -30 || cat pyproject.toml 2>/dev/null | head
 
 ### 第五步：写需求文档
 
-```bash
-mkdir -p .buildrail/idea
-```
+按 **shared/file-ops.md 的 P6** 确保 `.buildrail/idea/` 存在（多数 agent 的写文件工具会自动创建父目录，直接写即可）。
 
 文件名格式：`YYYY-MM-DD-<topic>-requirement.md`
 
@@ -152,12 +148,16 @@ mkdir -p .buildrail/idea
 - [ ] {标准 2}
 ```
 
-### 第六步：用户确认
+### 第六步：确认与收尾
 
-> "需求文档已保存到 `.buildrail/idea/{文件名}`。请查看并确认。确认后状态会改为 APPROVED。"
+**按调用方式分流**（见 `shared/two-paths.md`）：
 
-确认后提示：
-> "需求文档已确认。你可以继续运行后续 BuildRail skill（如 `/plan`、`/build`）来推进。"
+- **被 br-full-dev 级联调用**（路径 A）：状态直接置 APPROVED，通知"🟡 需求文档已生成（{路径}），交还控制权给父工作流"，**立即返回**，不等用户。
+- **被用户直接调用**（路径 B，`/idea` 路由过来）：
+  > "需求文档已保存到 `.buildrail/idea/{文件名}`。请查看并确认。确认后状态会改为 APPROVED。"
+  - 用户确认 → 状态置 APPROVED，输出：
+  > "✅ 需求文档已确认。
+  > **下一步**：可运行 `/br-plan` 生成实现计划；或先 `/br-scope-check` 做范围挑战（可选）。"
 
 ## 范围升级
 
