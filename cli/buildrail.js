@@ -14,6 +14,13 @@ const path = require('path');
 const os = require('os');
 const readline = require('readline');
 
+// child_process 用懒加载，避免 update 未被调用时也强制引入。
+function execSyncSafe(cmd, opts) {
+  const { execSync } = require('child_process');
+  // 合并默认 stdio 与调用方传入的 opts（如 cwd），调用方优先
+  return execSync(cmd, Object.assign({ stdio: ['ignore', 'pipe', 'pipe'] }, opts || {}));
+}
+
 // ---- 路径辅助 ----
 
 const REPO_ROOT = path.resolve(__dirname, '..');
@@ -195,6 +202,140 @@ async function cmdInit() {
   console.log('\n   两种用法见 README.md 的"两种用法"章节，或 shared/two-paths.md。\n');
 }
 
+// ---- update 主流程：从 npm 拉最新版，覆盖到目标 agent 目录 ----
+//
+// 为什么 update 要从 npm 拉，而不是用本地文件？
+// 因为 update 的语义是“拿到我发布的新版本”。本地这套文件是你正在开发的，
+// 可能还是旧的；只有 npm registry 上的才是“已发布的最新版”。
+// 所以 update = 下载 npm 最新 tarball -> 解压 -> 覆盖复制。
+//
+// 等价快捷方式：用户也可以直接跑 npx buildrail@latest init（init 本身就是覆盖式复制）。
+// update 只是把它包成了一个语义更明确的命令。
+
+async function cmdUpdate() {
+  console.log('════════════════════════════════════════');
+  console.log('  BuildRail 更新');
+  console.log('  从 npm 拉取最新版，覆盖到本地 agent 目录');
+  console.log('════════════════════════════════════════\n');
+
+  // 1. 查 npm 上最新版本号
+  let latestVersion;
+  try {
+    latestVersion = execSyncSafe('npm view buildrail version').toString().trim();
+  } catch (e) {
+    console.error('✗ 无法查询 npm 上的 buildrail 版本。请检查网络或 npm 配置。');
+    console.error('  快捷替代：直接跑 npx buildrail@latest init（覆盖式更新）');
+    process.exit(1);
+  }
+  console.log('→ npm 最新版本: ' + latestVersion);
+
+  // 2. 把最新版 tarball 下载到临时目录
+  const tmpDir = path.join(os.tmpdir(), 'buildrail-update-' + Date.now());
+  ensureDir(tmpDir);
+  console.log('→ 下载最新版到临时目录...');
+  try {
+    const dest = tmpDir.split(path.sep).join('/');
+    execSyncSafe('npm pack buildrail@latest --pack-destination="' + dest + '"', { cwd: tmpDir });
+  } catch (e) {
+    console.error('✗ 下载失败: ' + e.message);
+    console.error('  快捷替代：npx buildrail@latest init');
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+    process.exit(1);
+  }
+
+  // 找到下载的 tgz 并解压
+  const tgzFiles = fs.readdirSync(tmpDir).filter(function (f) { return f.endsWith('.tgz'); });
+  if (tgzFiles.length === 0) {
+    console.error('✗ 未找到下载的包文件。');
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+    process.exit(1);
+  }
+  // 解压：必须用相对文件名 + cwd，避免 Windows 盘符冒号(C:)
+  // 被 tar 误解析为远程 host（tar 的 host:path 语法冲突）
+  let extracted = path.join(tmpDir, 'package');
+  try {
+    execSyncSafe('tar -xzf "' + tgzFiles[0] + '"', { cwd: tmpDir });
+  } catch (e) {
+    // tar 不可用（部分 Windows 环境无 tar）时，给出明确替代
+    console.error('✗ 解压失败（系统可能没有 tar 命令）: ' + e.message);
+    console.error('  快捷替代：npx buildrail@latest init（init 本身就是覆盖式更新）');
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+    process.exit(1);
+  }
+
+  // 解压后内容在 package/ 子目录（extracted 已在上面声明）
+  if (!fs.existsSync(path.join(extracted, 'commands')) || !fs.existsSync(path.join(extracted, 'skills'))) {
+    console.error('✗ 解压后的包结构异常，找不到 commands/ 或 skills/。');
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+    process.exit(1);
+  }
+
+  // 3. 选择要更新到哪个 agent（复用 init 的交互逻辑）
+  const detected = detectInstalledAgents();
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+
+  console.log('\n选择要更新到哪个 AI 助手：\n');
+  const keys = Object.keys(AGENTS);
+  keys.forEach(function (k, i) {
+    const installed = detected.includes(k) ? ' [检测到已安装]' : '';
+    console.log('  ' + (i + 1) + ') ' + AGENTS[k].label + ' (' + k + ')' + installed);
+  });
+  console.log('  a) 全部更新');
+  console.log('');
+
+  let choice = await ask(rl, '输入序号（默认 ' + (detected.length === 1 ? keys.indexOf(detected[0]) + 1 : 1) + '): ');
+  const defaultIdx = detected.length === 1 ? keys.indexOf(detected[0]) : 0;
+
+  let targets = [];
+  if (choice.toLowerCase() === 'a') {
+    targets = keys;
+  } else {
+    const idx = parseInt(choice || String(defaultIdx + 1), 10) - 1;
+    if (isNaN(idx) || idx < 0 || idx >= keys.length) {
+      console.error('✗ 无效选择: "' + choice + '"');
+      rl.close();
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+      process.exit(1);
+    }
+    targets = [keys[idx]];
+  }
+
+  // 4. 逐个覆盖（逻辑同 installAgent，但源是解压出来的 package/）
+  for (const t of targets) {
+    const cfg = AGENTS[t];
+    const home = os.homedir();
+    const destCommands = path.join(home, cfg.commandsDir);
+    const destSkills = path.join(home, cfg.skillsDir);
+
+    console.log('\n→ 更新 ' + cfg.label);
+    console.log('  命令目录: ' + destCommands);
+    console.log('  技能目录: ' + destSkills);
+
+    try {
+      ensureDir(destCommands);
+      ensureDir(destSkills);
+
+      const cmds = listMarkdownFiles(path.join(extracted, 'commands'));
+      for (const c of cmds) fs.copyFileSync(c.path, path.join(destCommands, c.name));
+      console.log('  ✓ 更新 ' + cmds.length + ' 个命令');
+
+      const skills = listSkillDirs(path.join(extracted, 'skills'));
+      for (const sk of skills) copyDir(sk.path, path.join(destSkills, sk.name));
+      console.log('  ✓ 更新 ' + skills.length + ' 个技能目录');
+    } catch (e) {
+      console.error('  ✗ 更新失败: ' + e.message);
+    }
+  }
+
+  rl.close();
+  // 5. 清理临时目录
+  fs.rmSync(tmpDir, { recursive: true, force: true });
+
+  console.log('\n✅ 已更新到 v' + latestVersion + '。');
+  console.log('   重启你的 AI 助手让新版本生效。\n');
+}
+
+
 // ---- 导出（供单元测试 require；命令分发在 require.main === module 时才执行，被 require 时跳过） ----
 
 module.exports = {
@@ -218,6 +359,12 @@ if (require.main === module) {
       console.error('✗ 安装出错:', e.message);
       process.exit(1);
     });
+  } else if (cmd === 'update') {
+    cmdUpdate().catch(e => {
+      console.error('✗ 更新出错:', e.message);
+      console.error('  快捷替代：npx buildrail@latest init（覆盖式更新）');
+      process.exit(1);
+    });
   } else if (cmd === 'list') {
     // 调试用：列出当前仓库的 commands / skills
     console.log('Commands:');
@@ -225,10 +372,11 @@ if (require.main === module) {
     console.log('\nSkills:');
     listSkillDirs(SRC_SKILLS).forEach(s => console.log('  ' + s.name + '/'));
   } else if (cmd === 'help' || cmd === '--help' || cmd === '-h' || typeof cmd === 'undefined') {
-    console.log('BuildRail CLI — AI 原生开发工作流集合的一键安装器');
+    console.log('BuildRail CLI — AI 原生开发工作流集合的安装器 / 更新器');
     console.log('');
     console.log('用法:');
     console.log('  buildrail init            交互式安装 commands/skills 到目标 AI 助手');
+    console.log('  buildrail update          从 npm 拉最新版，覆盖更新已装的 commands/skills');
     console.log('  buildrail list            列出本仓库包含的 commands/skills');
     console.log('  buildrail help            显示本帮助');
     console.log('');
@@ -243,6 +391,7 @@ if (require.main === module) {
     console.log(`✗ 未知命令: "${cmd}"`);
     console.log('用法:');
     console.log('  buildrail init            交互式安装 commands/skills 到目标 AI 助手');
+    console.log('  buildrail update          从 npm 拉最新版，覆盖更新已装的 commands/skills');
     console.log('  buildrail list            列出本仓库包含的 commands/skills');
     console.log('  buildrail help            显示帮助');
     process.exit(1);
