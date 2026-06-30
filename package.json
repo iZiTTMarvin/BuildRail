@@ -7,7 +7,7 @@
   "homepage": "https://github.com/iZiTTMarvin/BuildRail",
   "repository": {
     "type": "git",
-    "url": "https://github.com/iZiTTMarvin/BuildRail.git"
+    "url": "git+https://github.com/iZiTTMarvin/BuildRail.git"
   },
   "keywords": [
     "ai",
