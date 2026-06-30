@@ -6,6 +6,7 @@
 
 高度兼容 · 绝对本地可控 · 不浪费 Token
 
+[![npm version](https://img.shields.io/npm/v/buildrail.svg)](https://www.npmjs.com/package/buildrail)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 [![Node](https://img.shields.io/badge/node-%3E%3D14-green.svg)](https://nodejs.org)
 [![Tests](https://img.shields.io/badge/tests-11%20passing-brightgreen.svg)](#测试)
@@ -306,6 +307,30 @@ BuildRail/
 2. 新增 / 修改 skill 或 command 时，遵循 [`shared/output-format.md`](./shared/output-format.md) 的命名与状态约定。
 3. 编排多个 skill 的新命令，先参考 [`references/orchestration-patterns.md`](./references/orchestration-patterns.md) 的推荐模式，避免反模式。
 
+
+### 维护者：发布与更新流程
+
+> **关键认知**：用户跑 `buildrail update` 拉的是 **npm 上的版本**，不是 GitHub。
+> 所以本地改完代码，必须 `npm publish` 后，用户的 `update` 才能拿到新版。
+
+完整的发布循环（每次改完 skill/command 后）：
+
+```bash
+1. 改 skills/xxx/SKILL.md 或 commands/xxx.md
+2. 改 package.json 的 version（如 0.1.0 → 0.1.1）  # 必须改！npm 拒收同版本
+3. npm test                                         # 确保测试过
+4. git commit -am "..." && git push                 # 推源码到 GitHub
+5. npm publish                                      # 推新版本到 npm（用户才能 update 到）
+```
+
+用户更新到最新版：
+
+```bash
+buildrail update          # 从 npm 拉最新版，覆盖到 agent 目录
+# 或等价写法：
+npx buildrail@latest init # init 本身就是覆盖式复制
+```
+
 ---
 
 ## 路线图
@@ -314,7 +339,7 @@ BuildRail/
 - [x] `state.json` + `/br-status` 可观测层
 - [x] 一键安装器（Claude Code / Windsurf / OpenCode / Cursor）
 - [x] CLI 单元测试
-- [ ] `buildrail update` 子命令（改了 .md 后一键覆盖更新到 agent 目录）
+- [x] `buildrail update` 子命令（从 npm 拉最新版，一键覆盖更新到 agent 目录）
 - [ ] GitHub Actions CI（push 时自动跑 `npm test`）
 - [ ] 更多 agent 支持（按需在 `AGENTS` 表扩展）
 
