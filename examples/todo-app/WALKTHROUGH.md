@@ -32,7 +32,7 @@ BuildRail 按 5 个阶段推进，每个关键决策都会**记录下来**（不
    - 全自动路径：scope-check 发现的问题**批量自动处理**，不逐条问你。计划默认采纳。
 3. **🟡 执行**：逐个任务实现→验收（不提交，改动留在工作区）。
 4. **🟡 审查**：跑五轴代码审查。
-5. **🟡 发布**：汇报成果 → 问你是否提交 → 你同意才更新 CHANGELOG + git commit + push。
+5. **🟡 发布**：汇报成果 → 问你是否提交 → 你同意才 git commit + push（不碰 CHANGELOG）。
 
 > 想每步都自己拍板？别用 `br-full-dev`，改用分步命令：`/idea` → `/br-plan` → `/run` → `/br-review` → `/br-ship`，每个命令做完停下等你确认（见 `shared/two-paths.md`）。
 

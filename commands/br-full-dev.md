@@ -91,7 +91,7 @@ argument-hint: <需求描述>
 汇报完后询问：**"以上改动都还在缓存区。是否需要我帮你提交并推送？"**
 
 - **用户不确定（尤其新手）** → 先用大白话解释 commit / push 是什么、做了会怎样，再问一次。
-- **用户说"要"** → **调用 `/br-ship`** 完成提交与推送（br-ship 内部会再次确认 commit message、执行 CHANGELOG 更新 + commit + push）。
+- **用户说"要"** → **调用 `/br-ship`** 完成提交与推送（br-ship 会汇报改动、确认 commit message，然后 commit + push）。
 - **用户说"不要 / 我再看看"** → 停止，不调用 br-ship。改动留在工作区，提示用户：*"改好可用 `/br-ship` 提交；想微调用 `/br-iterate`。"*
 - **用户想先改某处** → 建议 `/br-iterate <改动描述>` 微调，改完再 `/br-ship`。
 

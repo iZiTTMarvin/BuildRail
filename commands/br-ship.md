@@ -1,5 +1,5 @@
 ---
-description: 发布。更新 CHANGELOG，提交元数据，推送到远程。分步路径 B 的第五步（最后一步）。
+description: 发布。提交并推送已审查通过的代码（需用户确认）。分步路径 B 的第五步（最后一步）。
 argument-hint: [可选：补充发布说明]
 ---
 
@@ -22,9 +22,11 @@ argument-hint: [可选：补充发布说明]
 ## 执行
 
 读取 `skills/br-ship/SKILL.md`，按其流程执行：
-1. 更新 `CHANGELOG.md`（顶部最新日期下追加本次变更总结）
-2. 提交元数据文件（`git add CHANGELOG.md && git commit`）
+1. **汇报并询问用户**是否提交（br-ship 第零步，human-in-the-loop）
+2. 用户同意后：提交代码（`git add` 本次文件 + `git commit`，message 给用户过目）
 3. 推送到远程仓库（`git push`）
+
+> **不碰 CHANGELOG。** BuildRail 不假设用户维护变更日志。
 
 ---
 
@@ -39,8 +41,10 @@ argument-hint: [可选：补充发布说明]
 ## 收尾
 
 发布完成后输出：
-> "✅ 发布完成。变更已记录到 CHANGELOG 并推送到远程仓库。
+> "✅ 发布完成：代码已提交并推送到远程。
 > 后续：发现 bug 用 `/br-bugfix`，做新功能用 `/br-full-dev`（全自动）或 `/idea`（分步）。"
+>
+> 如果用户在第零步选择暂不提交：`"✅ 开发已完成，改动保留在工作区未提交。需要提交时运行 /br-ship。"`
 
 更新 state.json：`run.status: completed`、`run.updated_at`、`phase.current: ship`。
 
@@ -51,10 +55,9 @@ argument-hint: [可选：补充发布说明]
 | 场景 | 处理 |
 |------|------|
 | 工作区干净（没有待发布的变更） | 提示"没有可发布的变更。请先运行 `/run` 实现任务。" |
-| `CHANGELOG.md` 不存在 | 创建它并添加基本标题（见 skill 第一步） |
 | `git push` 失败（远程有新提交） | 提示"远程有新提交，请先 `git pull --rebase` 后重试" |
 | `git push` 失败（无权限/无远程） | 提示"推送失败：{错误信息}。可检查远程仓库配置或手动推送" |
-| 本次是内部重构/极微小改动 | 按 skill 规则可跳过 CHANGELOG 更新，但仍然 commit + push 代码 |
+
 
 ## 语气风格
 

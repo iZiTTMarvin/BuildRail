@@ -69,12 +69,22 @@ argument-hint: <改动描述>
 
 ---
 
-## 阶段 4：发布
+## 阶段 4：汇报与发布（human-in-the-loop）
+调用 `/br-ship` skill。br-ship 会：
+1. **汇报本次改动**（改了什么、改了哪些文件、验证结果）
+2. **询问你是否提交**："以上改动还在缓存区，是否需要我帮你提交并推送？"
+   - 新手不懂"提交"是什么 → AI 用大白话解释 commit/push 含义，再问一次
+   - 你说"要" → br-ship 确认 commit message 后 commit + push
+   - 你说"不要 / 我再看看" → 改动留在工作区，提示"改好用 `/br-ship` 提交"
 
-1. 调用 `/br-ship` skill，更新 `CHANGELOG.md`，执行 commit 并 push 到远程仓库。
+> **与 br-full-dev 阶段 5 一致**：小改动也要停下来问，保持产品底线统一——commit/push 是对外操作，必须用户点头。
 
 ## 结束通知
-向用户总结修改点："✅ 快速迭代已完成：[一句话总结改动点] 并已发布。
-后续维护：发现 bug 用 `/br-bugfix`，再做新功能用 `/br-full-dev`（全自动）或 `/idea`（分步）。"
+
+根据用户在阶段 4 的选择：
+- **用户同意提交**："✅ 快速迭代已完成：[一句话总结改动点]，已提交并推送。"
+- **用户暂不提交**："✅ 改动已完成并验证通过，保留在工作区未提交。需要提交时运行 `/br-ship`。"
+
+后续维护：发现 bug 用 `/br-bugfix`，再做新功能用 `/br-full-dev`（全自动）或 `/idea`（分步）。
 
 **运行结束写 state.json**：`run.status: completed`、`run.updated_at`、`global_check` 全量验证结果（阶段 2 第 3 步的 `npm test` / `pytest` 等结果）。
